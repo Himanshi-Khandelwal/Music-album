@@ -1,40 +1,62 @@
-from django.shortcuts import render,get_object_or_404
-from django.http import HttpResponse
-# Create your views here.
+from django.views import generic
+from django.views.generic.edit import CreateView , UpdateView , DeleteView
+from django.core.urlresolvers import reverse_lazy
+from django.shortcuts import render,redirect
+from django.contrib.auth import authenticate,login
+from django.views.generic import View
+from .forms import UserForm
+from .models import Album , Songs
 
-from .models import Album ,Songs
+class IndexView(generic.ListView):
+    template_name="index.html"
 
-def index(request):
-    all_albums= Album.objects.all()
-    context={
-        'all_albums' : all_albums,
-    }
-
-    return render(request,"index.html",context)
-
-def detail(request,album_id):
-    # try:
-    #      album=Album.objects.get(id=album_id)
-    # except Album.DoesNotExist:
-    #      raise Http404("Album doesnot exist")
-    album=get_object_or_404(Album,id=album_id)
-    context={
-        'album' : album ,
-    }
-    return render(request,"detail.html",context)
+    def get_queryset(self):
+        return Album.objects.all()
 
 
-def favorite(request , album_id):
-    album=get_object_or_404(Album,id=album_id)
-    context={
-        'album' : album ,
-        'error_message' : "You didnot select a valid song"
-    }
-    try :
-        selected_song=album.song_set.get(pk=request.POST['song'])
-    except (KeyError , Song.DoesNotExist):
-        return render(request,"detail.html",context)
-    else:
-        selected_song.is_favorite=True
-        selected_song.save()
-        return render(request,"detail.html",context)
+class DetailView(generic.DetailView):
+    model=Album
+    template_name="detail.html"
+
+class AlbumCreate(CreateView):
+    model=Album
+    template_name="album_form.html"
+    fields=['artist','album_title','genre','album_logo']
+
+class AlbumUpdate(UpdateView):
+    model=Album
+    template_name="album_form.html"
+    fields=['artist','album_title','genre','album_logo']
+
+class AlbumDelete(DeleteView):
+    model=Album
+    success_url=reverse_lazy('index')
+
+class UserFormView(View):
+    form_class=UserForm
+    template_name='registration_form.html'
+
+    #display empty form when the user just arrives
+    def get(self,request):
+        form=self.form_class(None)
+        return render(request,self.template_name,{'form':form})
+
+    #process form data
+    def post(self,request):
+        form=self.form_class(request.POST)
+        if form.is_valid:
+            user=form.save(commit=False)
+
+    #clean (normalized) data
+            username=form.cleaned_data['username']
+            password=form.cleaned_data['password']
+
+            user.set_password(password)
+            user.save()
+            #returns user objects if credentials are correct
+            user=authenticate(username=username , password=password)
+            if user is not None :
+                if user.is_active:
+                    login(request,user)
+                    return redirect('index')
+        return render(request,self.template_name,{'form':form})

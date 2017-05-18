@@ -2,9 +2,9 @@
 {% block title %} Viberr {% endblock %}
 
 {% block body %}
-{% if all_albums %}
+{% if object_list %}
 <ul>
-  {% for album in all_albums %}
+  {% for album in object_list %}
   <li><a href ="/music/{{album.id}}"> {{album.album_title}}</a></li>
   {% endfor %}
 </ul>
